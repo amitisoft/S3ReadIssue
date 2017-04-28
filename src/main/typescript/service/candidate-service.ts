@@ -95,38 +95,85 @@ export class CandidateServiceImpl implements CandidateService {
 
 
     update(data: any): Observable<Candidate> {
-        
-     //let s3 = new AWS.S3({apiVersion: '2006-03-01'});
+
+const es = require('event-stream');
 
 
+let recordsPipeLine = new AWS.S3().getObject({ Bucket:'candidatedatafile' , Key: 'OutWit guess export - IT_Services_in_Bangalore_Karnataka_India.csv'})
+.createReadStream()
+.pipe(es.split(/\r|\r?\n/))
+.pipe(es.map(function (line, cb) {
 
+cb(null, line);
+})).on('end', function(){
+console.log('pipeline end ');
+}).on('data', function(chunk) {
+
+
+   if(chunk.length === 0){
+
+   }
+   else{
+
+   let uid=uuid.v4();
+   var letterNumber = /^[0-9]+$/;
+
+ const params = {
+            TableName: "candidates",
+            Key: {
+                candidateId:uid ,
+            },
+            ExpressionAttributeNames: {
+                '#fn': 'firstName',
+                '#ln': 'lastName',
+                '#ph': 'phoneNumber',
+                '#em': 'email',
+            },
+            ExpressionAttributeValues: {
+                ':fn': chunk.split(";")[0].substr(1,chunk.split(";")[0].indexOf(' ')),
+                ':ln': chunk.split(";")[0].substr(chunk.split(";")[0].indexOf(' ')+1),
+                ':ph': chunk.split(";")[7].substring(0, 10).match(letterNumber) && chunk.split(";")[7].substring(0, 10).length === 10 ? chunk.split(";")[7].substring(0, 10) : '----------',
+                ':em': chunk.split(";")[1],
+            },
+
+            UpdateExpression: 'SET #fn = :fn, #ln = :ln, #ph = :ph, #em = :em ',
+
+            ReturnValues: 'ALL_NEW',
+        };
+
+        const documentClient = new DocumentClient();
+
+      documentClient.update(params, (err, data: any) => {
+                if(err) {
+                    console.error(err);
+
+                    return;
+                }
+
+            });
+
+   }
+});
+
+/*
 new AWS.S3().getObject({ Bucket:'candidatedatafile' , Key: 'OutWit guess export - IT_Services_in_Bangalore_Karnataka_India.csv' }, function(err, data)
 {
     if (!err)
-          
-          
              var letterNumber = /^[0-9]+$/;
-                  
-               var  a=data.Body.toString();
-                        
-                console.log("a= "+a);
-                        
-                //console.log("First name= "+ a.split(";")[0].substr(0,a.split(";")[0].indexOf(' ')));
-                //console.log("Last name= "+a.split(";")[0].substr(a.split(";")[0].indexOf(' ')+1));
-                //console.log("Phone number= "+a.split(";")[7].substring(0, 10).match(letterNumber) && a.split(";")[7].substring(0, 10).length === 10 ? a.split(";")[7].substring(0, 10) : '----------');
-                //console.log("Email= "+a.split(";")[1]);
-           
-           
-});
 
+               var  a=data.Body.toString();
+
+                console.log("a= "+a);
+});
+*/
 
     /*  const documentClient = new DocumentClient();
 
 obj.from.path('./datafile/OutWit guess export - IT_Services_in_Bangalore_Karnataka_India.csv').to.array(function (data1) {
     for (var index = 0; index < data1.length; index++) {
       for (var index1 = 0; index1 < data1[index].length; index1++) {
-                                      
-              var a=((data1[index])[index1]);           
+
+              var a=((data1[index])[index1]);
               var letterNumber = /^[0-9]+$/;
               let uid=uuid.v4();
               console.log("uid= "+uid+" index= "+index);
@@ -149,7 +196,7 @@ obj.from.path('./datafile/OutWit guess export - IT_Services_in_Bangalore_Karnata
             },
             UpdateExpression: 'SET #fn = :fn, #ln = :ln, #ph = :ph, #em = :em ',
             //ConditionExpression : "attribute_not_exists(:em)",
-            ConditionExpression: 'attribute_not_exists(#em)', 
+            ConditionExpression: 'attribute_not_exists(#em)',
 
             ReturnValues: 'ALL_NEW',
         };
@@ -158,10 +205,10 @@ obj.from.path('./datafile/OutWit guess export - IT_Services_in_Bangalore_Karnata
       documentClient.update(params, (err, data: any) => {
                 if(err) {
                     console.error(err);
-                  
+
                     return;
                 }
-                            
+
             });
           }
 
@@ -174,7 +221,7 @@ obj.from.path('./datafile/OutWit guess export - IT_Services_in_Bangalore_Karnata
 
 
 
-   /*                 
+   /*
 var uploadParams = {Bucket: 'candidatedatafile', Key: '', Body: ''};
 var file = './datafile/OutWit guess export - IT_Services_in_Bangalore_Karnataka_India.csv';
 
@@ -198,12 +245,8 @@ s3.upload (uploadParams, function (err, data) {
 });
 */
 
-
-
-
-    
         return Observable.create((observer:Observer<Candidate>) => {
-      
+
         });
     }
 
